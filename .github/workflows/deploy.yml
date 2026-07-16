@@ -2,6 +2,12 @@ name: Deploy to GitHub Pages
 
 # Runs automatically every time you push to "main". This is what makes
 # "git push" the only step you ever need — no manual build/upload dance.
+#
+# IMPORTANT: this file must live at .github/workflows/deploy.yml relative
+# to the REPO ROOT — not inside frontend/. GitHub Actions only ever scans
+# .github/workflows/ at the top level of the repository; a workflow file
+# nested inside a subfolder (like frontend/.github/workflows/) is invisible
+# to GitHub and will never run, no matter how correct its contents are.
 on:
   push:
     branches: [main]
@@ -19,21 +25,32 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Since package.json lives in frontend/, not the repo root, every step
+    # below needs to run from inside that folder. `defaults.run.working-directory`
+    # applies that to every `run:` step in this job at once, instead of
+    # prefixing each command with "cd frontend &&" individually.
+    defaults:
+      run:
+        working-directory: frontend
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
       - run: npm ci
       - run: npm run build
-        # Vite outputs the production-ready static site into ./dist
+        # Vite outputs the production-ready static site into frontend/dist
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: frontend/dist
+          # Note: this path IS relative to the repo root (not affected by
+          # working-directory above), since it's an input to the action,
+          # not a shell command — hence "frontend/dist" written out in full.
 
   deploy:
     needs: build
