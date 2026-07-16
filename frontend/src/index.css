@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Prevents the classic mobile-Safari "rubber band" overscroll from looking
+   janky on a full-height app, and stops accidental text selection when
+   users are tapping/dragging items around. */
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
