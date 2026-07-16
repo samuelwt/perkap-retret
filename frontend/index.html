@@ -6,6 +6,10 @@
          at phone size instead of a zoomed-out "desktop site" on mobile. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Trip Inventory</title>
+    <!-- Google's sign-in library. It attaches window.google.accounts.id,
+         which Login.jsx uses to render the real "Sign in with Google"
+         button and receive a verified ID token. -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>
     <div id="root"></div>

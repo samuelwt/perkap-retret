@@ -1,0 +1,1141 @@
+diff --git a/GOOGLE_SIGNIN_SETUP.md b/GOOGLE_SIGNIN_SETUP.md
+new file mode 100644
+index 0000000..848121b
+--- /dev/null
++++ b/GOOGLE_SIGNIN_SETUP.md
+@@ -0,0 +1,48 @@
++# Phase 4 setup — Google Sign-In
++
++This gives you a `GOOGLE_CLIENT_ID` to paste into `frontend/src/config.js`.
++It's separate from the Apps Script deployment you already did — this one
++is specifically for verifying *who's signing in*, not for the Sheet API.
++
++## 1. Create an OAuth Client ID
++
++1. Go to [console.cloud.google.com](https://console.cloud.google.com).
++2. Create a new project (or reuse one) — name doesn't matter, e.g. "Trip Inventory".
++3. Go to **APIs & Services → OAuth consent screen**.
++   - User type: **External**.
++   - Fill in the required fields (app name, your email). You can leave it in "Testing" mode — you don't need to publish it, since only you will ever sign in.
++   - Under **Test users**, add your own Google account email.
++4. Go to **APIs & Services → Credentials → Create Credentials → OAuth client ID**.
++   - Application type: **Web application**.
++   - Name: anything, e.g. "Trip Inventory Web".
++   - **Authorized JavaScript origins** — add both of these (adjust the GitHub Pages one to match your actual repo):
++     ```
++     http://localhost:5173
++     https://yourusername.github.io
++     ```
++     Note: this is the *origin* only (scheme + domain), no path — so even though your site lives at `.../trip-inventory/`, you only enter `https://yourusername.github.io` here.
++5. Click **Create**. Copy the **Client ID** shown (ends in `.apps.googleusercontent.com`).
++
++## 2. Plug it in
++
++Paste it into `frontend/src/config.js`:
++
++```js
++export const GOOGLE_CLIENT_ID = '123456789-abcdefg.apps.googleusercontent.com';
++```
++
++## 3. Confirm ADMIN_EMAIL matches
++
++Double check `google-apps-script/Code.gs`'s `ADMIN_EMAIL` is set to the *exact same* Google account you added as a test user above. If they don't match, sign-in will succeed (Google lets you log in fine) but every move/remove action will fail with "Unauthorized" — because `isAdmin()` in Code.gs checks the signed-in email against `ADMIN_EMAIL` specifically, not just "did someone sign in."
++
++## 4. Test it
++
++```bash
++cd frontend
++npm install   # picks up the new @dnd-kit dependency
++npm run dev
++```
++
++Go to `/admin` — you should see Google's real sign-in button instead of the old "(Dev only) Simulate sign-in" one. Sign in, and you should land on the Clusters tab with your live item data.
++
++If sign-in fails with a Google error page instead of showing the button at all, it's almost always the **Authorized JavaScript origins** step — Google is strict about exact matches (no trailing slash, correct scheme).
+diff --git a/README.md b/README.md
+index 0e72ea0..c2809de 100644
+--- a/README.md
++++ b/README.md
+@@ -34,21 +34,22 @@ frontend/              The React app that gets deployed to GitHub Pages
+      the included workflow (`.github/workflows/deploy.yml`) builds and
+      publishes automatically on every push to `main`.
+ 
+-## What's built so far (Phases 0–2)
++## What's built so far (Phases 0–4)
+ 
+ - ✅ Sheet schema + Config tab for your enum lists (with `Beli` added to owners)
+ - ✅ Apps Script API: `getItems`, `getConfig`, `checkIn`, `bulkMove`, `removeItem`, `addItem`
+ - ✅ Server-side enforcement of the "only `Beli`-owned items can be removed" rule
+ - ✅ React app scaffold with `/` (view-only) and `/admin` (gated) routing
+ - ✅ Auto-deploy pipeline to GitHub Pages
++- ✅ View-only page: stale-items panel (oldest-first) + clustered view (category/owner/location/removed)
++- ✅ Real Google Sign-In gating the admin page (see `GOOGLE_SIGNIN_SETUP.md`)
++- ✅ Clusters tab: multi-select checkboxes + bulk "move to" dropdown + bulk remove
++- ✅ Board tab: drag-and-drop between locations, touch-friendly, with a trash-can drop zone
++- ✅ Checklist tab: confirm-present flow that bulk-updates `time_stamp` on submit
++- ✅ Removal safety: UI disables/blocks removing non-`Beli` items, backend rejects it regardless
+ 
+ ## Still to come
+ 
+-- **Phase 3** — View-only page: real clustering (by category/owner/location/removed)
+-  and the "not checked in a while" panel sorted oldest-first.
+-- **Phase 4** — Real Google Sign-In (replacing the dev-only stub in `Login.jsx`),
+-  drag-and-drop location board, bulk multi-select move, trash-can removal with
+-  disabled state for non-removable items, checklist submit flow.
+-- **Phase 5** — Your floor-plan screenshot as the board background, with
+-  location zones positioned to match it.
+-- **Phase 6** — Mobile polish + edge-case testing.
++- **Phase 5** — Your floor-plan screenshot as the board's background image, with
++  location zone coordinates recalibrated to match it (currently placeholder x/y values).
++- **Phase 6** — Mobile polish pass + edge-case testing (empty states, offline, rapid taps).
+diff --git a/frontend/index.html b/frontend/index.html
+index 8e70928..24c2b03 100644
+--- a/frontend/index.html
++++ b/frontend/index.html
+@@ -6,6 +6,10 @@
+          at phone size instead of a zoomed-out "desktop site" on mobile. -->
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+     <title>Trip Inventory</title>
++    <!-- Google's sign-in library. It attaches window.google.accounts.id,
++         which Login.jsx uses to render the real "Sign in with Google"
++         button and receive a verified ID token. -->
++    <script src="https://accounts.google.com/gsi/client" async defer></script>
+   </head>
+   <body>
+     <div id="root"></div>
+diff --git a/frontend/package.json b/frontend/package.json
+index b55b071..777b043 100644
+--- a/frontend/package.json
++++ b/frontend/package.json
+@@ -10,6 +10,8 @@
+     "deploy": "npm run build"
+   },
+   "dependencies": {
++    "@dnd-kit/core": "^6.1.0",
++    "@dnd-kit/utilities": "^3.2.2",
+     "react": "^18.3.1",
+     "react-dom": "^18.3.1",
+     "react-router-dom": "^6.26.0"
+diff --git a/frontend/src/components/BulkActionBar.jsx b/frontend/src/components/BulkActionBar.jsx
+new file mode 100644
+index 0000000..704cb06
+--- /dev/null
++++ b/frontend/src/components/BulkActionBar.jsx
+@@ -0,0 +1,59 @@
++/**
++ * Appears as a sticky bar once one or more items are selected (via
++ * checkboxes in GroupedList or ChecklistMode). This is what makes
++ * "select 5 rows and move them all at once" (your spec point 3) work —
++ * one dropdown, one click, all selected items move together.
++ *
++ * Removal safety: the Remove button is disabled — not just warned
++ * against, actually unclickable — the moment ANY selected item isn't
++ * owned by 'Beli'. This is the "make this action impossible in the
++ * first place" option from your spec point 4, rather than a dialog
++ * you'd have to dismiss. The backend re-checks this regardless (see
++ * removeItem() in Code.gs) in case this UI is ever bypassed.
++ */
++export default function BulkActionBar({ selectedItems, locations, onMove, onRemove, onClear }) {
++  if (selectedItems.length === 0) return null;
++
++  const allRemovable = selectedItems.every((item) => item.item_owner === 'Beli');
++  const noneRemovable = selectedItems.every((item) => item.item_owner !== 'Beli');
++
++  return (
++    <div className="fixed bottom-0 left-0 right-0 bg-slate-900 text-white px-4 py-3 flex items-center gap-3 shadow-lg z-20">
++      <span className="text-sm shrink-0">{selectedItems.length} selected</span>
++
++      <select
++        onChange={(e) => e.target.value && onMove(e.target.value)}
++        defaultValue=""
++        className="flex-1 min-w-0 bg-slate-800 text-white text-sm rounded-lg px-2 py-2 border border-slate-700"
++      >
++        <option value="" disabled>Move to…</option>
++        {locations.map((loc) => (
++          <option key={loc.value} value={loc.value}>{loc.value}</option>
++        ))}
++      </select>
++
++      <button
++        onClick={onRemove}
++        disabled={!allRemovable}
++        title={
++          allRemovable
++            ? 'Remove selected items'
++            : noneRemovable
++              ? "These items are borrowed, not bought — they can't be thrown away."
++              : "Some selected items are borrowed — deselect them to remove the rest."
++        }
++        className={`shrink-0 text-sm px-3 py-2 rounded-lg ${
++          allRemovable
++            ? 'bg-red-600 text-white'
++            : 'bg-slate-700 text-slate-400 cursor-not-allowed'
++        }`}
++      >
++        Remove
++      </button>
++
++      <button onClick={onClear} className="shrink-0 text-sm text-slate-400 underline">
++        Clear
++      </button>
++    </div>
++  );
++}
+diff --git a/frontend/src/components/ChecklistMode.jsx b/frontend/src/components/ChecklistMode.jsx
+new file mode 100644
+index 0000000..de08c83
+--- /dev/null
++++ b/frontend/src/components/ChecklistMode.jsx
+@@ -0,0 +1,85 @@
++import { useEffect, useState } from 'react';
++import { checkInItems } from '../api.js';
++
++/**
++ * Your spec point 5: "check items at any point, fill out a checklist +
++ * submit, it updates time_stamp of last checking."
++ *
++ * UX choice: every active (non-removed) item starts CHECKED, meaning
++ * "confirmed present by default." You uncheck the ones that are
++ * actually missing, then hit Submit. Only the still-checked items get
++ * their time_stamp bumped — items you unchecked are deliberately left
++ * alone, so they'll show up as stale/unconfirmed on the panel until
++ * you resolve wherever they actually are. This is safer than the
++ * reverse (starting all unchecked), since it can't silently mark
++ * something "checked" that you never actually looked at.
++ */
++export default function ChecklistMode({ items, onSubmitted }) {
++  const activeItems = items.filter((item) => !item.item_removed);
++  const [checkedIds, setCheckedIds] = useState(new Set());
++  const [submitting, setSubmitting] = useState(false);
++
++  // Reset to "everything checked" whenever the underlying item list
++  // changes (e.g. after a fresh submit, or items were moved elsewhere).
++  useEffect(() => {
++    setCheckedIds(new Set(activeItems.map((item) => item.item_id)));
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [items.length]);
++
++  function toggle(id) {
++    setCheckedIds((prev) => {
++      const next = new Set(prev);
++      next.has(id) ? next.delete(id) : next.add(id);
++      return next;
++    });
++  }
++
++  async function handleSubmit() {
++    setSubmitting(true);
++    await checkInItems(Array.from(checkedIds));
++    setSubmitting(false);
++    onSubmitted();
++  }
++
++  const missingCount = activeItems.length - checkedIds.size;
++
++  return (
++    <div className="pb-24">
++      <p className="text-sm text-slate-500 mb-3">
++        Everything starts checked. Uncheck anything that's actually missing, then submit.
++      </p>
++
++      <ul className="space-y-2">
++        {activeItems.map((item) => (
++          <li key={item.item_id} className="bg-white rounded-xl shadow-sm p-3 flex items-center gap-3">
++            <input
++              type="checkbox"
++              checked={checkedIds.has(item.item_id)}
++              onChange={() => toggle(item.item_id)}
++              className="w-5 h-5 shrink-0 accent-emerald-600"
++            />
++            <div className="min-w-0 flex-1">
++              <p className={`font-medium truncate ${!checkedIds.has(item.item_id) ? 'text-red-600' : ''}`}>
++                {item.item_name}
++              </p>
++              <p className="text-xs text-slate-500 truncate">{item.location}</p>
++            </div>
++          </li>
++        ))}
++      </ul>
++
++      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 py-3 flex items-center gap-3 shadow-lg">
++        {missingCount > 0 && (
++          <span className="text-sm text-red-600 shrink-0">{missingCount} missing</span>
++        )}
++        <button
++          onClick={handleSubmit}
++          disabled={submitting}
++          className="flex-1 bg-slate-900 text-white text-sm font-medium py-2.5 rounded-lg disabled:opacity-50"
++        >
++          {submitting ? 'Submitting…' : `Submit check (${checkedIds.size} confirmed)`}
++        </button>
++      </div>
++    </div>
++  );
++}
+diff --git a/frontend/src/components/GroupedList.jsx b/frontend/src/components/GroupedList.jsx
+new file mode 100644
+index 0000000..4ea59fc
+--- /dev/null
++++ b/frontend/src/components/GroupedList.jsx
+@@ -0,0 +1,88 @@
++import { useState } from 'react';
++import { groupBy } from '../utils/grouping.js';
++import ItemRow from './ItemRow.jsx';
++
++const GROUP_OPTIONS = [
++  { field: 'item_category', label: 'Category' },
++  { field: 'item_owner', label: 'Owner' },
++  { field: 'location', label: 'Location' },
++  { field: 'item_removed', label: 'Removed' },
++];
++
++/**
++ * Your spec point 6: "display items in clusters based on same category
++ * / owner / location / removed-status." Rather than four separate
++ * screens, this is one component with a pill-tab switcher on top —
++ * tap "Location" and every item re-groups by location, tap "Owner"
++ * and it re-groups by owner, etc. Each group is a collapsible card.
++ *
++ * `selectable`/`selectedIds`/`onToggleSelect` are optional — when
++ * omitted (view-only page), rows render with no checkboxes at all.
++ */
++export default function GroupedList({ items, selectable = false, selectedIds, onToggleSelect }) {
++  const [groupField, setGroupField] = useState('item_category');
++  const [collapsed, setCollapsed] = useState({});
++
++  const groups = groupBy(items, groupField);
++  const groupNames = Object.keys(groups).sort();
++
++  function toggleCollapsed(name) {
++    setCollapsed((prev) => ({ ...prev, [name]: !prev[name] }));
++  }
++
++  return (
++    <div>
++      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
++        {GROUP_OPTIONS.map((opt) => (
++          <button
++            key={opt.field}
++            onClick={() => setGroupField(opt.field)}
++            className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium ${
++              groupField === opt.field
++                ? 'bg-slate-900 text-white'
++                : 'bg-white text-slate-600 border border-slate-200'
++            }`}
++          >
++            {opt.label}
++          </button>
++        ))}
++      </div>
++
++      <div className="space-y-4">
++        {groupNames.map((name) => {
++          const groupItems = groups[name];
++          const isCollapsed = collapsed[name];
++          return (
++            <div key={name}>
++              <button
++                onClick={() => toggleCollapsed(name)}
++                className="w-full flex justify-between items-center text-left mb-2"
++              >
++                <h3 className="text-sm font-semibold text-slate-600">
++                  {name} <span className="text-slate-400 font-normal">({groupItems.length})</span>
++                </h3>
++                <span className="text-slate-400 text-xs">{isCollapsed ? 'show' : 'hide'}</span>
++              </button>
++              {!isCollapsed && (
++                <ul className="space-y-2">
++                  {groupItems.map((item) => (
++                    <ItemRow
++                      key={item.item_id}
++                      item={item}
++                      selectable={selectable}
++                      selected={selectedIds?.has(item.item_id)}
++                      onToggleSelect={onToggleSelect}
++                    />
++                  ))}
++                </ul>
++              )}
++            </div>
++          );
++        })}
++        {groupNames.length === 0 && (
++          <p className="text-slate-500 text-center py-8">No items yet.</p>
++        )}
++      </div>
++    </div>
++  );
++}
+diff --git a/frontend/src/components/ItemRow.jsx b/frontend/src/components/ItemRow.jsx
+new file mode 100644
+index 0000000..8c569fb
+--- /dev/null
++++ b/frontend/src/components/ItemRow.jsx
+@@ -0,0 +1,51 @@
++import { timeAgo, stalenessLevel } from '../utils/grouping.js';
++
++const DOT_COLOR = {
++  ok: 'bg-emerald-400',
++  warning: 'bg-amber-400',
++  critical: 'bg-red-400',
++};
++
++/**
++ * One row = one item. `selectable` toggles whether a checkbox renders
++ * on the left (used in Admin for bulk operations) — the view-only page
++ * passes selectable={false} and gets a plain read-only row.
++ */
++export default function ItemRow({ item, selectable, selected, onToggleSelect }) {
++  const level = stalenessLevel(item.time_stamp);
++
++  return (
++    <li
++      className={`bg-white rounded-xl shadow-sm p-3 flex items-center gap-3 ${
++        item.item_removed ? 'opacity-50' : ''
++      }`}
++    >
++      {selectable && (
++        <input
++          type="checkbox"
++          checked={selected}
++          onChange={() => onToggleSelect(item.item_id)}
++          className="w-5 h-5 shrink-0 accent-slate-900"
++          // Bigger tap target than the browser default — matters a lot
++          // on a phone where a tiny checkbox is easy to miss.
++        />
++      )}
++
++      <span className={`w-2 h-2 rounded-full shrink-0 ${DOT_COLOR[level]}`} title="Check-in freshness" />
++
++      <div className="min-w-0 flex-1">
++        <p className="font-medium truncate">{item.item_name}</p>
++        <p className="text-xs text-slate-500 truncate">
++          {item.location} · {item.item_owner}
++        </p>
++      </div>
++
++      <div className="text-right shrink-0">
++        <p className="text-xs text-slate-400">{timeAgo(item.time_stamp)}</p>
++        {item.item_removed && (
++          <span className="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">removed</span>
++        )}
++      </div>
++    </li>
++  );
++}
+diff --git a/frontend/src/components/LocationBoard.jsx b/frontend/src/components/LocationBoard.jsx
+new file mode 100644
+index 0000000..5c0771c
+--- /dev/null
++++ b/frontend/src/components/LocationBoard.jsx
+@@ -0,0 +1,142 @@
++import {
++  DndContext, useDraggable, useDroppable,
++  PointerSensor, TouchSensor, useSensor, useSensors,
++} from '@dnd-kit/core';
++
++/**
++ * Your spec point 3: place locations around a screen, and let you drag
++ * items between them (or fall back to a dropdown — that fallback is
++ * BulkActionBar, used elsewhere; this component is the spatial version).
++ *
++ * Two sensors are configured on purpose:
++ *  - PointerSensor handles mouse/trackpad, with a small `distance`
++ *    threshold so a plain click/tap doesn't accidentally start a drag.
++ *  - TouchSensor handles phones specifically, with a `delay` — you
++ *    have to hold briefly before it starts dragging. Without this,
++ *    dragging a chip and scrolling the board would constantly conflict
++ *    with each other on a touchscreen; the small delay is what lets
++ *    the browser tell "you're trying to scroll" apart from "you're
++ *    trying to drag this chip."
++ *
++ * Coordinates (x, y) for each location come from your Config sheet.
++ * They're placeholders until Phase 5, when we'll overlay this on your
++ * actual floor-plan screenshot and recalibrate them to match.
++ */
++export default function LocationBoard({ items, locations, onMoveItem, onRemoveItem }) {
++  const sensors = useSensors(
++    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
++    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
++  );
++
++  const activeItems = items.filter((item) => !item.item_removed);
++
++  const maxX = Math.max(...locations.map((l) => Number(l.x) || 0), 300) + 160;
++  const maxY = Math.max(...locations.map((l) => Number(l.y) || 0), 300) + 120;
++
++  function handleDragEnd(event) {
++    const { active, over } = event;
++    if (!over) return; // dropped somewhere that isn't a valid target — do nothing
++
++    const itemId = Number(active.id);
++
++    if (over.id === 'trash-zone') {
++      onRemoveItem(itemId);
++    } else {
++      onMoveItem(itemId, over.id);
++    }
++  }
++
++  return (
++    <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
++      <div
++        className="relative bg-slate-100 rounded-xl border border-slate-200 overflow-auto"
++        style={{ width: '100%', height: '60vh', minHeight: 300 }}
++      >
++        <div className="relative" style={{ width: maxX, height: maxY }}>
++          {locations.map((loc) => (
++            <LocationZone
++              key={loc.value}
++              location={loc}
++              items={activeItems.filter((item) => item.location === loc.value)}
++            />
++          ))}
++        </div>
++      </div>
++
++      <TrashZone />
++    </DndContext>
++  );
++}
++
++/** A drop target representing one physical location. */
++function LocationZone({ location, items }) {
++  const { setNodeRef, isOver } = useDroppable({ id: location.value });
++
++  return (
++    <div
++      ref={setNodeRef}
++      className={`absolute w-36 min-h-24 rounded-lg border-2 p-2 ${
++        isOver ? 'border-slate-900 bg-slate-50' : 'border-slate-300 bg-white'
++      }`}
++      style={{ left: location.x || 0, top: location.y || 0 }}
++    >
++      <p className="text-xs font-semibold text-slate-500 mb-1 truncate">{location.value}</p>
++      <div className="flex flex-wrap gap-1">
++        {items.map((item) => (
++          <ItemChip key={item.item_id} item={item} />
++        ))}
++      </div>
++    </div>
++  );
++}
++
++/** A single draggable item pill. */
++function ItemChip({ item }) {
++  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
++    id: String(item.item_id),
++  });
++
++  const style = transform
++    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 50 }
++    : undefined;
++
++  return (
++    <div
++      ref={setNodeRef}
++      style={style}
++      {...listeners}
++      {...attributes}
++      className={`text-xs bg-slate-900 text-white px-2 py-1 rounded-full cursor-grab active:cursor-grabbing select-none ${
++        isDragging ? 'opacity-70' : ''
++      }`}
++    >
++      {item.item_name}
++    </div>
++  );
++}
++
++/**
++ * Fixed in the corner (not inside the scrollable board) so it's always
++ * reachable no matter how far you've scrolled the board around.
++ * Whether a given drag is ALLOWED into the trash is decided by the
++ * parent's onRemoveItem → Code.gs's removeItem(), which rejects
++ * non-'Beli' items server-side. Visually we don't disable dragging
++ * items that can't be trashed — dnd-kit doesn't easily support
++ * per-target rules mid-drag — but the drop is a no-op with a message
++ * if it's rejected, and nothing is ever silently thrown away.
++ */
++function TrashZone() {
++  const { setNodeRef, isOver } = useDroppable({ id: 'trash-zone' });
++
++  return (
++    <div
++      ref={setNodeRef}
++      className={`fixed bottom-20 right-4 w-16 h-16 rounded-full flex items-center justify-center text-2xl shadow-lg z-30 ${
++        isOver ? 'bg-red-600 scale-110' : 'bg-red-500'
++      } transition-transform`}
++      title="Drag a bought item here to remove it"
++    >
++      🗑️
++    </div>
++  );
++}
+diff --git a/frontend/src/components/StaleItemsPanel.jsx b/frontend/src/components/StaleItemsPanel.jsx
+new file mode 100644
+index 0000000..fc7887a
+--- /dev/null
++++ b/frontend/src/components/StaleItemsPanel.jsx
+@@ -0,0 +1,62 @@
++import { sortByStalest, stalenessLevel, timeAgo } from '../utils/grouping.js';
++
++// Tailwind classes per staleness level — kept in one lookup so the
++// three visual states (fine / getting old / very stale) are defined
++// exactly once instead of scattered through JSX with ternaries.
++const LEVEL_STYLES = {
++  ok: 'bg-white border-slate-200',
++  warning: 'bg-amber-50 border-amber-300',
++  critical: 'bg-red-50 border-red-300',
++};
++
++const LEVEL_BADGE = {
++  ok: 'text-slate-500',
++  warning: 'text-amber-700',
++  critical: 'text-red-700 font-semibold',
++};
++
++/**
++ * Your spec: "display of items that have not been checked in a long
++ * time, listed in chronological order, at the top of the list."
++ *
++ * This component owns that entirely — it takes the full item list,
++ * sorts it itself (oldest time_stamp first), and renders only the
++ * items that are actually stale-worthy of attention.
++ */
++export default function StaleItemsPanel({ items }) {
++  const sorted = sortByStalest(items);
++  const staleOnly = sorted.filter((item) => stalenessLevel(item.time_stamp) !== 'ok');
++
++  if (staleOnly.length === 0) {
++    return (
++      <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-800">
++        Everything's been checked recently. Nothing stale right now.
++      </div>
++    );
++  }
++
++  return (
++    <div className="mb-6">
++      <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">
++        Needs checking ({staleOnly.length})
++      </h2>
++      <ul className="space-y-2">
++        {staleOnly.map((item) => {
++          const level = stalenessLevel(item.time_stamp);
++          return (
++            <li
++              key={item.item_id}
++              className={`rounded-xl border p-3 flex justify-between items-center ${LEVEL_STYLES[level]}`}
++            >
++              <div>
++                <p className="font-medium">{item.item_name}</p>
++                <p className="text-xs text-slate-500">{item.location}</p>
++              </div>
++              <span className={`text-xs ${LEVEL_BADGE[level]}`}>{timeAgo(item.time_stamp)}</span>
++            </li>
++          );
++        })}
++      </ul>
++    </div>
++  );
++}
+diff --git a/frontend/src/hooks/useInventory.js b/frontend/src/hooks/useInventory.js
+new file mode 100644
+index 0000000..7f693c4
+--- /dev/null
++++ b/frontend/src/hooks/useInventory.js
+@@ -0,0 +1,43 @@
++import { useCallback, useEffect, useState } from 'react';
++import { getItems, getConfig } from '../api.js';
++
++/**
++ * Both ViewOnly and Admin need the same two things: the item list and
++ * the Config sheet (categories/owners/locations). Rather than each
++ * page writing its own fetch + loading + error state, they both call
++ * this one hook.
++ *
++ * `pollMs` is optional — pass e.g. 15000 to auto-refresh every 15s
++ * (used on the view-only page so people see live updates without
++ * reloading). Admin doesn't poll by default, since an auto-refresh
++ * mid-drag or mid-selection would be a bad, disorienting experience —
++ * it refetches manually after each write instead (see refresh()).
++ */
++export function useInventory(pollMs = null) {
++  const [items, setItems] = useState([]);
++  const [config, setConfig] = useState(null);
++  const [loading, setLoading] = useState(true);
++  const [error, setError] = useState(null);
++
++  const refresh = useCallback(async () => {
++    try {
++      const [itemsData, configData] = await Promise.all([getItems(), getConfig()]);
++      setItems(itemsData);
++      setConfig(configData);
++      setError(null);
++    } catch (err) {
++      setError('Could not load the inventory. Check your connection.');
++    } finally {
++      setLoading(false);
++    }
++  }, []);
++
++  useEffect(() => {
++    refresh();
++    if (!pollMs) return;
++    const interval = setInterval(refresh, pollMs);
++    return () => clearInterval(interval);
++  }, [refresh, pollMs]);
++
++  return { items, config, loading, error, refresh };
++}
+diff --git a/frontend/src/pages/Admin.jsx b/frontend/src/pages/Admin.jsx
+index c5c621d..a539917 100644
+--- a/frontend/src/pages/Admin.jsx
++++ b/frontend/src/pages/Admin.jsx
+@@ -1,34 +1,46 @@
+-import { useEffect, useState } from 'react';
+-import { getItems, getConfig } from '../api.js';
++import { useState } from 'react';
++import { useInventory } from '../hooks/useInventory.js';
++import { bulkMoveItems, removeItem as apiRemoveItem } from '../api.js';
+ import Login from './Login.jsx';
++import GroupedList from '../components/GroupedList.jsx';
++import BulkActionBar from '../components/BulkActionBar.jsx';
++import LocationBoard from '../components/LocationBoard.jsx';
++import ChecklistMode from '../components/ChecklistMode.jsx';
++import StaleItemsPanel from '../components/StaleItemsPanel.jsx';
++
++const TABS = [
++  { id: 'clusters', label: 'Clusters' },
++  { id: 'board', label: 'Board' },
++  { id: 'checklist', label: 'Checklist' },
++];
+ 
+ /**
+- * Admin is gated by session state: `adminToken` is null until you sign
+- * in with Google (wired properly in Phase 4). Until then, this page
+- * only ever renders <Login />, never the real controls — so there's no
+- * "flash of admin UI" before the check happens.
++ * The admin page is gated by adminToken (from real Google Sign-In, see
++ * Login.jsx). Everything below this point assumes you're really signed
++ * in — but as noted elsewhere, that's for UX only; Code.gs independently
++ * re-verifies the token on every write, so this gate isn't the actual
++ * security boundary.
+  *
+- * Once signed in, every write call (move / remove / check-in) sends
+- * this token along, and Code.gs re-verifies it server-side. The
+- * frontend check here is just for UX — it's not the actual security
+- * boundary, the backend is.
++ * Three tabs share one selection concept:
++ *   - Clusters: grouped list with checkboxes + BulkActionBar for
++ *     multi-select move/remove (spec point 3's "bulk operations")
++ *   - Board: the spatial drag-and-drop view (spec point 3's alternative)
++ *   - Checklist: the "confirm everything's here, submit" flow (point 5)
+  */
+ export default function Admin() {
+   const [adminToken, setAdminToken] = useState(
+     () => sessionStorage.getItem('adminToken') || null
+   );
+-  const [items, setItems] = useState([]);
+-  const [config, setConfig] = useState(null);
+-  const [loading, setLoading] = useState(true);
+-
+-  useEffect(() => {
+-    if (!adminToken) return;
+-    Promise.all([getItems(), getConfig()]).then(([itemsData, configData]) => {
+-      setItems(itemsData);
+-      setConfig(configData);
+-      setLoading(false);
+-    });
+-  }, [adminToken]);
++  const [activeTab, setActiveTab] = useState('clusters');
++  const [selectedIds, setSelectedIds] = useState(new Set());
++  const [notice, setNotice] = useState(null);
++
++  const { items, config, loading, error, refresh } = useInventory();
++
++  function showNotice(message) {
++    setNotice(message);
++    setTimeout(() => setNotice(null), 4000);
++  }
+ 
+   function handleSignIn(token) {
+     sessionStorage.setItem('adminToken', token);
+@@ -40,50 +52,115 @@ export default function Admin() {
+     setAdminToken(null);
+   }
+ 
++  function toggleSelect(id) {
++    setSelectedIds((prev) => {
++      const next = new Set(prev);
++      next.has(id) ? next.delete(id) : next.add(id);
++      return next;
++    });
++  }
++
++  async function handleBulkMove(newLocation) {
++    await bulkMoveItems(Array.from(selectedIds), newLocation, adminToken);
++    setSelectedIds(new Set());
++    refresh();
++  }
++
++  async function handleBulkRemove() {
++    const results = await Promise.all(
++      Array.from(selectedIds).map((id) => apiRemoveItem(id, adminToken))
++    );
++    const failed = results.filter((r) => !r.success);
++    if (failed.length > 0) showNotice(failed[0].error);
++    setSelectedIds(new Set());
++    refresh();
++  }
++
++  async function handleBoardMove(itemId, newLocation) {
++    await bulkMoveItems([itemId], newLocation, adminToken);
++    refresh();
++  }
++
++  async function handleBoardRemove(itemId) {
++    const result = await apiRemoveItem(itemId, adminToken);
++    if (!result.success) showNotice(result.error);
++    refresh();
++  }
++
+   if (!adminToken) {
+     return <Login onSignIn={handleSignIn} />;
+   }
+ 
++  const selectedItems = items.filter((item) => selectedIds.has(item.item_id));
++
+   return (
+-    <div className="max-w-lg mx-auto px-4 py-6">
+-      <header className="mb-6 flex items-center justify-between">
++    <div className="max-w-lg mx-auto px-4 py-6 pb-28">
++      <header className="mb-4 flex items-center justify-between">
+         <div>
+           <h1 className="text-2xl font-bold">Inventory Master</h1>
+           <p className="text-sm text-slate-500">Move, check in, and remove items</p>
+         </div>
+-        <button
+-          onClick={handleSignOut}
+-          className="text-sm text-slate-500 underline"
+-        >
++        <button onClick={handleSignOut} className="text-sm text-slate-500 underline">
+           Sign out
+         </button>
+       </header>
+ 
++      {notice && (
++        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">
++          {notice}
++        </div>
++      )}
++
++      <div className="flex gap-2 mb-4">
++        {TABS.map((tab) => (
++          <button
++            key={tab.id}
++            onClick={() => setActiveTab(tab.id)}
++            className={`flex-1 py-2 rounded-lg text-sm font-medium ${
++              activeTab === tab.id ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600'
++            }`}
++          >
++            {tab.label}
++          </button>
++        ))}
++      </div>
++
+       {loading && <p className="text-slate-500">Loading…</p>}
++      {error && <p className="text-red-600">{error}</p>}
+ 
+-      {!loading && (
++      {!loading && !error && (
+         <>
+-          <p className="text-sm text-slate-500 mb-3">
+-            {items.length} items loaded · {config?.locations?.length || 0} locations configured
+-          </p>
+-          {/*
+-            Phase 4 replaces this placeholder with:
+-              - the drag-and-drop location board
+-              - multi-select + bulk "move to" dropdown
+-              - the trash can (disabled for non-'Beli' items)
+-              - the checklist submit flow
+-            For now this just confirms admin data loads correctly.
+-          */}
+-          <ul className="space-y-2">
+-            {items.map((item) => (
+-              <li key={item.item_id} className="bg-white rounded-xl shadow-sm p-4">
+-                <p className="font-medium">{item.item_name}</p>
+-                <p className="text-sm text-slate-500">
+-                  {item.location} · {item.item_owner} · {item.item_category}
+-                </p>
+-              </li>
+-            ))}
+-          </ul>
++          {activeTab === 'clusters' && (
++            <>
++              <StaleItemsPanel items={items} />
++              <GroupedList
++                items={items}
++                selectable
++                selectedIds={selectedIds}
++                onToggleSelect={toggleSelect}
++              />
++              <BulkActionBar
++                selectedItems={selectedItems}
++                locations={config?.locations || []}
++                onMove={handleBulkMove}
++                onRemove={handleBulkRemove}
++                onClear={() => setSelectedIds(new Set())}
++              />
++            </>
++          )}
++
++          {activeTab === 'board' && (
++            <LocationBoard
++              items={items}
++              locations={config?.locations || []}
++              onMoveItem={handleBoardMove}
++              onRemoveItem={handleBoardRemove}
++            />
++          )}
++
++          {activeTab === 'checklist' && (
++            <ChecklistMode items={items} onSubmitted={refresh} />
++          )}
+         </>
+       )}
+     </div>
+diff --git a/frontend/src/pages/Login.jsx b/frontend/src/pages/Login.jsx
+index ece4664..a847d54 100644
+--- a/frontend/src/pages/Login.jsx
++++ b/frontend/src/pages/Login.jsx
+@@ -1,29 +1,50 @@
++import { useEffect, useRef } from 'react';
++import { GOOGLE_CLIENT_ID } from '../config.js';
++
+ /**
+- * STUB — full Google Sign-In wiring happens in Phase 4.
++ * Real Google Sign-In, via Google Identity Services (the <script> tag
++ * in index.html). How it works, step by step:
+  *
+- * The real version renders Google's official sign-in button (via the
+- * Google Identity Services script), receives a signed idToken when you
+- * log in, and passes it up to Admin.jsx. That token then gets sent
+- * with every write request so Code.gs can verify it's really you
+- * (see isAdmin() in Code.gs).
+- *
+- * For now this is a placeholder so routing and layout can be tested
+- * before OAuth is wired up.
++ * 1. window.google.accounts.id.initialize() registers our GOOGLE_CLIENT_ID
++ *    and a callback function for when sign-in succeeds.
++ * 2. renderButton() draws Google's own official button into our <div>
++ *    ref — we don't design this button ourselves, which is intentional:
++ *    a recognizable Google button is more trustworthy to click than a
++ *    custom-styled one, and Google requires using their button for the
++ *    standard flow anyway.
++ * 3. When you click it and sign in, Google calls our callback with a
++ *    `credential` — a signed JWT proving who you are. We hand that
++ *    straight to onSignIn(), which Admin.jsx stores and sends along
++ *    with every write request. Code.gs independently re-verifies this
++ *    token with Google's servers before trusting it (see isAdmin() in
++ *    Code.gs) — so this page is UX, not the actual security boundary.
+  */
+ export default function Login({ onSignIn }) {
++  const buttonRef = useRef(null);
++
++  useEffect(() => {
++    if (!window.google || !buttonRef.current) return;
++
++    window.google.accounts.id.initialize({
++      client_id: GOOGLE_CLIENT_ID,
++      callback: (response) => onSignIn(response.credential),
++    });
++
++    window.google.accounts.id.renderButton(buttonRef.current, {
++      theme: 'filled_black',
++      size: 'large',
++      shape: 'pill',
++    });
++  }, [onSignIn]);
++
+   return (
+     <div className="flex flex-col items-center justify-center min-h-screen gap-4 px-6 text-center">
+       <h1 className="text-xl font-semibold">Inventory Master Sign-In</h1>
+       <p className="text-sm text-slate-500 max-w-xs">
+-        Google Sign-In will go here in Phase 4. For now, this button
+-        simulates signing in for local testing only.
++        Sign in with the Google account set as ADMIN_EMAIL in Code.gs.
++        Any other account will be rejected when you try to make changes.
+       </p>
+-      <button
+-        onClick={() => onSignIn('DEV_PLACEHOLDER_TOKEN')}
+-        className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm"
+-      >
+-        (Dev only) Simulate sign-in
+-      </button>
++      <div ref={buttonRef} />
+     </div>
+   );
+ }
+diff --git a/frontend/src/pages/ViewOnly.jsx b/frontend/src/pages/ViewOnly.jsx
+index 85008d1..33adf62 100644
+--- a/frontend/src/pages/ViewOnly.jsx
++++ b/frontend/src/pages/ViewOnly.jsx
+@@ -1,63 +1,36 @@
+-import { useEffect, useState } from 'react';
+-import { getItems } from '../api.js';
++import { useInventory } from '../hooks/useInventory.js';
++import StaleItemsPanel from '../components/StaleItemsPanel.jsx';
++import GroupedList from '../components/GroupedList.jsx';
+ 
+ /**
+- * This is a deliberately simple version for now — it proves the
+- * connection to the Sheet works end to end (fetch items, render them).
++ * Phase 3: this page now does what your spec actually asked for —
++ *   - stale items pinned at the top, sorted oldest-first
++ *   - clustered view by category/owner/location/removed with a switcher
+  *
+- * Phase 3 replaces the flat list below with:
+- *   - a "not checked in a while" panel pinned to the top, sorted oldest-first
+- *   - collapsible clusters by category / owner / location / removed-status
+- *
+- * Keeping this page 100% read-only (no buttons that change data) is
+- * intentional — it's the link you hand to everyone else on the trip.
++ * It polls every 15s (see useInventory(15000) below) so if you move an
++ * item from the admin side, anyone with this page open sees it update
++ * on its own — no manual refresh needed. This page never calls any
++ * write endpoint, so there's nothing here that could accidentally
++ * change data even if someone pokes around in devtools.
+  */
+ export default function ViewOnly() {
+-  const [items, setItems] = useState([]);
+-  const [loading, setLoading] = useState(true);
+-  const [error, setError] = useState(null);
+-
+-  useEffect(() => {
+-    getItems()
+-      .then(setItems)
+-      .catch(() => setError('Could not load the inventory. Check your connection.'))
+-      .finally(() => setLoading(false));
+-  }, []);
++  const { items, loading, error } = useInventory(15000);
+ 
+   return (
+     <div className="max-w-lg mx-auto px-4 py-6">
+       <header className="mb-6">
+         <h1 className="text-2xl font-bold">Trip Inventory</h1>
+-        <p className="text-sm text-slate-500">Live status — view only</p>
++        <p className="text-sm text-slate-500">Live status · view only</p>
+       </header>
+ 
+       {loading && <p className="text-slate-500">Loading…</p>}
+       {error && <p className="text-red-600">{error}</p>}
+ 
+       {!loading && !error && (
+-        <ul className="space-y-2">
+-          {items.map((item) => (
+-            <li
+-              key={item.item_id}
+-              className="bg-white rounded-xl shadow-sm p-4 flex justify-between items-center"
+-            >
+-              <div>
+-                <p className="font-medium">{item.item_name}</p>
+-                <p className="text-sm text-slate-500">
+-                  {item.location} · {item.item_owner}
+-                </p>
+-              </div>
+-              {item.item_removed && (
+-                <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded-full">
+-                  removed
+-                </span>
+-              )}
+-            </li>
+-          ))}
+-          {items.length === 0 && (
+-            <p className="text-slate-500 text-center py-8">No items yet.</p>
+-          )}
+-        </ul>
++        <>
++          <StaleItemsPanel items={items} />
++          <GroupedList items={items} />
++        </>
+       )}
+     </div>
+   );
+diff --git a/frontend/src/utils/grouping.js b/frontend/src/utils/grouping.js
+new file mode 100644
+index 0000000..4a8e8f9
+--- /dev/null
++++ b/frontend/src/utils/grouping.js
+@@ -0,0 +1,71 @@
++import { STALE_HOURS_WARNING, STALE_HOURS_CRITICAL } from '../config.js';
++
++/**
++ * Groups an array of items by a given field, e.g.
++ *   groupBy(items, 'item_category')
++ * returns: { "BBQ": [item, item], "General": [item], ... }
++ *
++ * We use this same function for all four cluster types your spec asked
++ * for (category / owner / location / removed) — it's generic on purpose,
++ * so the UI just needs a dropdown that changes WHICH field to pass in,
++ * rather than four separate grouping functions.
++ */
++export function groupBy(items, field) {
++  const groups = {};
++  items.forEach((item) => {
++    // item_removed is a boolean, so give it readable labels instead of "true"/"false"
++    const key = field === 'item_removed'
++      ? (item[field] ? 'Removed' : 'Active')
++      : (item[field] || 'Uncategorized');
++
++    if (!groups[key]) groups[key] = [];
++    groups[key].push(item);
++  });
++  return groups;
++}
++
++/**
++ * How many hours since an item's time_stamp. Used both for the stale
++ * panel and for color-coding rows.
++ */
++export function hoursSince(timeStamp) {
++  if (!timeStamp) return Infinity;
++  const diffMs = Date.now() - new Date(timeStamp).getTime();
++  return diffMs / (1000 * 60 * 60);
++}
++
++/**
++ * Returns 'critical' | 'warning' | 'ok' based on how long it's been
++ * since an item was last checked in. Thresholds live in config.js so
++ * you can tune them without hunting through component code.
++ */
++export function stalenessLevel(timeStamp) {
++  const hrs = hoursSince(timeStamp);
++  if (hrs >= STALE_HOURS_CRITICAL) return 'critical';
++  if (hrs >= STALE_HOURS_WARNING) return 'warning';
++  return 'ok';
++}
++
++/**
++ * Turns a timestamp into "3h ago" / "2d ago" style text — much faster
++ * to scan on a phone screen than a full date string.
++ */
++export function timeAgo(timeStamp) {
++  if (!timeStamp) return 'never checked';
++  const hrs = hoursSince(timeStamp);
++  if (hrs < 1) return `${Math.round(hrs * 60)}m ago`;
++  if (hrs < 24) return `${Math.round(hrs)}h ago`;
++  return `${Math.round(hrs / 24)}d ago`;
++}
++
++/**
++ * Sorts items oldest-checked-first. Removed items are excluded — an
++ * item that's been thrown away doesn't need to be "checked" anymore,
++ * so it would just be noise at the top of this list.
++ */
++export function sortByStalest(items) {
++  return items
++    .filter((item) => !item.item_removed)
++    .slice()
++    .sort((a, b) => hoursSince(b.time_stamp) - hoursSince(a.time_stamp));
++}

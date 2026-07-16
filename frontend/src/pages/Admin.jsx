@@ -1,34 +1,46 @@
-import { useEffect, useState } from 'react';
-import { getItems, getConfig } from '../api.js';
+import { useState } from 'react';
+import { useInventory } from '../hooks/useInventory.js';
+import { bulkMoveItems, removeItem as apiRemoveItem } from '../api.js';
 import Login from './Login.jsx';
+import GroupedList from '../components/GroupedList.jsx';
+import BulkActionBar from '../components/BulkActionBar.jsx';
+import LocationBoard from '../components/LocationBoard.jsx';
+import ChecklistMode from '../components/ChecklistMode.jsx';
+import StaleItemsPanel from '../components/StaleItemsPanel.jsx';
+
+const TABS = [
+  { id: 'clusters', label: 'Clusters' },
+  { id: 'board', label: 'Board' },
+  { id: 'checklist', label: 'Checklist' },
+];
 
 /**
- * Admin is gated by session state: `adminToken` is null until you sign
- * in with Google (wired properly in Phase 4). Until then, this page
- * only ever renders <Login />, never the real controls — so there's no
- * "flash of admin UI" before the check happens.
+ * The admin page is gated by adminToken (from real Google Sign-In, see
+ * Login.jsx). Everything below this point assumes you're really signed
+ * in — but as noted elsewhere, that's for UX only; Code.gs independently
+ * re-verifies the token on every write, so this gate isn't the actual
+ * security boundary.
  *
- * Once signed in, every write call (move / remove / check-in) sends
- * this token along, and Code.gs re-verifies it server-side. The
- * frontend check here is just for UX — it's not the actual security
- * boundary, the backend is.
+ * Three tabs share one selection concept:
+ *   - Clusters: grouped list with checkboxes + BulkActionBar for
+ *     multi-select move/remove (spec point 3's "bulk operations")
+ *   - Board: the spatial drag-and-drop view (spec point 3's alternative)
+ *   - Checklist: the "confirm everything's here, submit" flow (point 5)
  */
 export default function Admin() {
   const [adminToken, setAdminToken] = useState(
     () => sessionStorage.getItem('adminToken') || null
   );
-  const [items, setItems] = useState([]);
-  const [config, setConfig] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('clusters');
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [notice, setNotice] = useState(null);
 
-  useEffect(() => {
-    if (!adminToken) return;
-    Promise.all([getItems(), getConfig()]).then(([itemsData, configData]) => {
-      setItems(itemsData);
-      setConfig(configData);
-      setLoading(false);
-    });
-  }, [adminToken]);
+  const { items, config, loading, error, refresh } = useInventory();
+
+  function showNotice(message) {
+    setNotice(message);
+    setTimeout(() => setNotice(null), 4000);
+  }
 
   function handleSignIn(token) {
     sessionStorage.setItem('adminToken', token);
@@ -40,50 +52,115 @@ export default function Admin() {
     setAdminToken(null);
   }
 
+  function toggleSelect(id) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  async function handleBulkMove(newLocation) {
+    await bulkMoveItems(Array.from(selectedIds), newLocation, adminToken);
+    setSelectedIds(new Set());
+    refresh();
+  }
+
+  async function handleBulkRemove() {
+    const results = await Promise.all(
+      Array.from(selectedIds).map((id) => apiRemoveItem(id, adminToken))
+    );
+    const failed = results.filter((r) => !r.success);
+    if (failed.length > 0) showNotice(failed[0].error);
+    setSelectedIds(new Set());
+    refresh();
+  }
+
+  async function handleBoardMove(itemId, newLocation) {
+    await bulkMoveItems([itemId], newLocation, adminToken);
+    refresh();
+  }
+
+  async function handleBoardRemove(itemId) {
+    const result = await apiRemoveItem(itemId, adminToken);
+    if (!result.success) showNotice(result.error);
+    refresh();
+  }
+
   if (!adminToken) {
     return <Login onSignIn={handleSignIn} />;
   }
 
+  const selectedItems = items.filter((item) => selectedIds.has(item.item_id));
+
   return (
-    <div className="max-w-lg mx-auto px-4 py-6">
-      <header className="mb-6 flex items-center justify-between">
+    <div className="max-w-lg mx-auto px-4 py-6 pb-28">
+      <header className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Inventory Master</h1>
           <p className="text-sm text-slate-500">Move, check in, and remove items</p>
         </div>
-        <button
-          onClick={handleSignOut}
-          className="text-sm text-slate-500 underline"
-        >
+        <button onClick={handleSignOut} className="text-sm text-slate-500 underline">
           Sign out
         </button>
       </header>
 
-      {loading && <p className="text-slate-500">Loading…</p>}
+      {notice && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg p-3">
+          {notice}
+        </div>
+      )}
 
-      {!loading && (
+      <div className="flex gap-2 mb-4">
+        {TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+              activeTab === tab.id ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {loading && <p className="text-slate-500">Loading…</p>}
+      {error && <p className="text-red-600">{error}</p>}
+
+      {!loading && !error && (
         <>
-          <p className="text-sm text-slate-500 mb-3">
-            {items.length} items loaded · {config?.locations?.length || 0} locations configured
-          </p>
-          {/*
-            Phase 4 replaces this placeholder with:
-              - the drag-and-drop location board
-              - multi-select + bulk "move to" dropdown
-              - the trash can (disabled for non-'Beli' items)
-              - the checklist submit flow
-            For now this just confirms admin data loads correctly.
-          */}
-          <ul className="space-y-2">
-            {items.map((item) => (
-              <li key={item.item_id} className="bg-white rounded-xl shadow-sm p-4">
-                <p className="font-medium">{item.item_name}</p>
-                <p className="text-sm text-slate-500">
-                  {item.location} · {item.item_owner} · {item.item_category}
-                </p>
-              </li>
-            ))}
-          </ul>
+          {activeTab === 'clusters' && (
+            <>
+              <StaleItemsPanel items={items} />
+              <GroupedList
+                items={items}
+                selectable
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+              />
+              <BulkActionBar
+                selectedItems={selectedItems}
+                locations={config?.locations || []}
+                onMove={handleBulkMove}
+                onRemove={handleBulkRemove}
+                onClear={() => setSelectedIds(new Set())}
+              />
+            </>
+          )}
+
+          {activeTab === 'board' && (
+            <LocationBoard
+              items={items}
+              locations={config?.locations || []}
+              onMoveItem={handleBoardMove}
+              onRemoveItem={handleBoardRemove}
+            />
+          )}
+
+          {activeTab === 'checklist' && (
+            <ChecklistMode items={items} onSubmitted={refresh} />
+          )}
         </>
       )}
     </div>

@@ -6,7 +6,7 @@ export const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxVzsBxD
 // TODO: this is the OAuth "Client ID" you'll get from Google Cloud Console
 // when setting up Google Sign-In in Phase 4 (admin login). Left as a
 // placeholder for now since login wiring comes later.
-export const GOOGLE_CLIENT_ID = 'PLACEHOLDER_GOOGLE_OAUTH_CLIENT_ID';
+export const GOOGLE_CLIENT_ID = '1074670965569-necmdtedsb8ulak57ffek88rouo2jasl.apps.googleusercontent.com';
 
 // How "stale" (unchecked) an item needs to be before it's flagged red
 // in the stale-items panel. Tweak freely.

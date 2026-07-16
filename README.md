@@ -34,21 +34,22 @@ frontend/              The React app that gets deployed to GitHub Pages
      the included workflow (`.github/workflows/deploy.yml`) builds and
      publishes automatically on every push to `main`.
 
-## What's built so far (Phases 0–2)
+## What's built so far (Phases 0–4)
 
 - ✅ Sheet schema + Config tab for your enum lists (with `Beli` added to owners)
 - ✅ Apps Script API: `getItems`, `getConfig`, `checkIn`, `bulkMove`, `removeItem`, `addItem`
 - ✅ Server-side enforcement of the "only `Beli`-owned items can be removed" rule
 - ✅ React app scaffold with `/` (view-only) and `/admin` (gated) routing
 - ✅ Auto-deploy pipeline to GitHub Pages
+- ✅ View-only page: stale-items panel (oldest-first) + clustered view (category/owner/location/removed)
+- ✅ Real Google Sign-In gating the admin page (see `GOOGLE_SIGNIN_SETUP.md`)
+- ✅ Clusters tab: multi-select checkboxes + bulk "move to" dropdown + bulk remove
+- ✅ Board tab: drag-and-drop between locations, touch-friendly, with a trash-can drop zone
+- ✅ Checklist tab: confirm-present flow that bulk-updates `time_stamp` on submit
+- ✅ Removal safety: UI disables/blocks removing non-`Beli` items, backend rejects it regardless
 
 ## Still to come
 
-- **Phase 3** — View-only page: real clustering (by category/owner/location/removed)
-  and the "not checked in a while" panel sorted oldest-first.
-- **Phase 4** — Real Google Sign-In (replacing the dev-only stub in `Login.jsx`),
-  drag-and-drop location board, bulk multi-select move, trash-can removal with
-  disabled state for non-removable items, checklist submit flow.
-- **Phase 5** — Your floor-plan screenshot as the board background, with
-  location zones positioned to match it.
-- **Phase 6** — Mobile polish + edge-case testing.
+- **Phase 5** — Your floor-plan screenshot as the board's background image, with
+  location zone coordinates recalibrated to match it (currently placeholder x/y values).
+- **Phase 6** — Mobile polish pass + edge-case testing (empty states, offline, rapid taps).
