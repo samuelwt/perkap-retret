@@ -28,7 +28,7 @@ export default function LocationGallery() {
     : [];
 
   return (
-    <div className="w-full">
+    <div className="w-full pt-14">
       <div
         className="relative w-full overflow-hidden bg-slate-100"
         style={{ aspectRatio: `${page.width} / ${page.height}` }}
