@@ -24,8 +24,11 @@ export const GALLERY_PAGES = [
     width: 440,
     height: 720,
     markers: [
-      { id: 'pgi-1', xPct: 70, yPct: 440, locations: ['Aula Ibadah', 'Follow The Voice - Odri, Sam'] },
-      { id: 'pgi-2', xPct: 65, yPct: 55, locations: ['Aula Ibadah'] },
+      { id: 'pgi-1', xPct: 85, yPct: 62, locations: ['Aula Ibadah', 'Follow The Voice - Odri, Sam'] },
+      { id: 'pgi-2', xPct: 89, yPct: 67, locations: ['BBQ Place', 'Cup War - Jose, DC']},
+      { id: 'pgi-3', xPct: 80, yPct: 68, locations: ['Kamar para cogan']},
+      { id: 'pgi-4', xPct: 50, yPct: 60, locations: ['Just Draw - Pow']},
+      { id: 'pgi-5', xPct: 34, yPct: 89, locations: ['Tissue - Nath, Odri']}
     ],
   },
   {
@@ -35,14 +38,14 @@ export const GALLERY_PAGES = [
     width: 440,
     height: 720,
     markers: [
-      { id: 'bawah-1', xPct: 25, yPct: 30, locations: ['BBQ Place'] },
+      { id: 'bawah-1', xPct: 65, yPct: 27, locations: ['Infinity Race - Neysa, Reyner'] },
       {
         id: 'bawah-2',
-        xPct: 50,
-        yPct: 55,
-        locations: ['Follow The Voice - Odri, Sam', 'Just Draw - Pow'],
+        xPct: 25,
+        yPct: 60,
+        locations: ['Battleship - Ray, Jose'],
       },
-      { id: 'bawah-3', xPct: 75, yPct: 70, locations: ['Cup War - Jose, DC'] },
+      { id: 'bawah-3', xPct: 35, yPct: 85, locations: ['Water Relay - Rivano, Reyner'] },
     ],
   },
   {
@@ -52,7 +55,7 @@ export const GALLERY_PAGES = [
     width: 440,
     height: 720,
     markers: [
-      { id: 'gereja-1', xPct: 50, yPct: 50, locations: ['Tissue - Nath, Odri'] },
+      { id: 'gereja-1', xPct: 65, yPct: 40, locations: ['Gereja'] },
     ],
   },
   {
@@ -64,11 +67,10 @@ export const GALLERY_PAGES = [
     markers: [
       {
         id: 'rumah-1',
-        xPct: 35,
-        yPct: 45,
-        locations: ['Infinity Race - Neysa, Reyner', 'Battleship - Ray, Jose'],
+        xPct: 55,
+        yPct: 55,
+        locations: ['Rumah Sam'],
       },
-      { id: 'rumah-2', xPct: 65, yPct: 60, locations: ['Water Relay - Rivano, Reyner'] },
     ],
   },
 ];
