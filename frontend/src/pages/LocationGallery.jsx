@@ -31,20 +31,15 @@ export default function LocationGallery() {
     <div className="w-full">
       <div
         className="relative w-full overflow-hidden bg-slate-100"
-        style={{ aspectRatio: `${page.height} / ${page.width}` }}
+        style={{ aspectRatio: `${page.width} / ${page.height}` }}
       >
-        {/* Source images are landscape; rotating 90deg here (rather than
-            pre-rotating the asset files) suits a phone's portrait screen.
-            The wrapper's aspect-ratio is swapped (h/w) to match, and the
-            img keeps its own natural w/h ratio pre-rotation so nothing
-            distorts — it's just centered, scaled to height, and turned. */}
+
         <img
           src={`${import.meta.env.BASE_URL}${page.image}`}
           alt={page.title}
           width={page.width}
           height={page.height}
-          style={{ aspectRatio: `${page.width} / ${page.height}` }}
-          className="absolute top-1/2 left-1/2 h-full w-auto -translate-x-1/2 -translate-y-1/2 rotate-90 object-cover"
+          className="absolute inset-0 w-full h-full object-cover"
           loading={pageIndex === 0 ? 'eager' : 'lazy'}
         />
 

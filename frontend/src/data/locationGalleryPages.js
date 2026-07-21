@@ -21,8 +21,8 @@ export const GALLERY_PAGES = [
     id: 'pgi',
     title: 'Pondok Remaja PGI',
     image: 'assets/3_PGI.png',
-    width: 720,
-    height: 440,
+    width: 440,
+    height: 720,
     markers: [
       { id: 'pgi-1', xPct: 30, yPct: 40, locations: ['Kamar para cogan'] },
       { id: 'pgi-2', xPct: 65, yPct: 55, locations: ['Aula Ibadah'] },
@@ -32,8 +32,8 @@ export const GALLERY_PAGES = [
     id: 'pgi-bawah',
     title: 'Pondok Remaja PGI - Bawah',
     image: 'assets/4_PGI_Bawah.png',
-    width: 720,
-    height: 440,
+    width: 440,
+    height: 720,
     markers: [
       { id: 'bawah-1', xPct: 25, yPct: 30, locations: ['BBQ Place'] },
       {
@@ -49,8 +49,8 @@ export const GALLERY_PAGES = [
     id: 'gereja',
     title: 'Gereja',
     image: 'assets/1_GKY_PIK.png',
-    width: 720,
-    height: 440,
+    width: 440,
+    height: 720,
     markers: [
       { id: 'gereja-1', xPct: 50, yPct: 50, locations: ['Tissue - Nath, Odri'] },
     ],
@@ -59,8 +59,8 @@ export const GALLERY_PAGES = [
     id: 'rumah-sam',
     title: 'Rumah Sam',
     image: 'assets/2_Rumah_Sam.png',
-    width: 720,
-    height: 440,
+    width: 440,
+    height: 720,
     markers: [
       {
         id: 'rumah-1',
