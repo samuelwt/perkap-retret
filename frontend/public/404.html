@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Trip Inventory</title>
+    <script type="text/javascript">
+      // GitHub Pages serves THIS file for any URL it can't match to a real
+      // file — which includes /admin, since that route only exists inside
+      // your React bundle, not as an actual file on disk. Instead of
+      // showing a dead-end 404 page, this script rewrites the broken URL
+      // into a query string and redirects to your real index.html, which
+      // is the only page that actually contains the React app and router.
+      //
+      // pathSegmentsToKeep = 1 because your site lives under one path
+      // segment: yourusername.github.io/trip-inventory/... — that "1"
+      // must match how many segments come before your actual routes.
+      // If you ever rename the repo (changing BASE_PATH in vite.config.js),
+      // update this number to match.
+      var pathSegmentsToKeep = 1;
+
+      var l = window.location;
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
+        l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+        (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
+      );
+    </script>
+  </head>
+  <body></body>
+</html>
