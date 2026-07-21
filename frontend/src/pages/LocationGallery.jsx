@@ -43,7 +43,7 @@ export default function LocationGallery() {
           loading={pageIndex === 0 ? 'eager' : 'lazy'}
         />
 
-        <span className="absolute right-4 top-20 bg-white text-black text-sm font-medium px-3 py-1.5 rounded-xl shadow z-10 rotate-90 h-auto w-auto">
+        <span className="absolute right-1 top-20 bg-white text-black text-sm font-medium px-3 py-1.5 rounded-xl shadow z-10 rotate-90 h-auto w-auto">
           {page.title}
         </span>
 
