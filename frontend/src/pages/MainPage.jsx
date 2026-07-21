@@ -29,7 +29,7 @@ export default function MainPage() {
               this placeholder color with the aerial map artwork. */}
           <div
             className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${import.meta.env.BASE_URL}assets/3_PGI.png)` }}
+            style={{ backgroundImage: `url(${import.meta.env.BASE_URL}assets/3_PGI_mainPage.png)` }}
           />
           <span className="absolute left-4 bottom-4 text-[24px] leading-[30px] font-normal text-black">
             Location View
