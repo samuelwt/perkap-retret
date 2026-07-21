@@ -68,7 +68,7 @@ export default function LocationGallery() {
             onClick={() => setActiveMarker(marker)}
             aria-label={`Show items at ${marker.locations.join(' & ')}`}
             className="absolute -translate-x-1/2 -translate-y-1/2 z-10"
-            style={{ left: `${marker.xPct}%`, top: `${marker.yPct}%`, width: '19.2px', height: '19.2px' }}
+            style={{ left: `${marker.xPct}%`, top: `${marker.yPct}%`, width: '24px', height: '24px' }}
           >
             <img
               src={`${import.meta.env.BASE_URL}assets/appleAssistiveTouch.png`}
