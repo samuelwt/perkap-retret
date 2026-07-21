@@ -1,11 +1,8 @@
 import { useInventory } from '../hooks/useInventory.js';
-import StaleItemsPanel from '../components/StaleItemsPanel.jsx';
 import GroupedList from '../components/GroupedList.jsx';
 
 /**
- * Phase 3: this page now does what your spec actually asked for —
- *   - stale items pinned at the top, sorted oldest-first
- *   - clustered view by category/owner/location/removed with a switcher
+ * Clustered view by category/owner/location/removed, with a switcher.
  *
  * It polls every 15s (see useInventory(15000) below) so if you move an
  * item from the admin side, anyone with this page open sees it update
@@ -19,19 +16,14 @@ export default function ViewOnly() {
   return (
     <div className="max-w-lg mx-auto px-4 py-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold">Trip Inventory</h1>
-        <p className="text-sm text-slate-500">Live status · view only</p>
+        <h1 className="text-2xl font-bold">Perkap Retret ALIVE 2026</h1>
+        <p className="text-sm text-slate-500">Buat checklist barang barang selama acara.</p>
       </header>
 
       {loading && <p className="text-slate-500">Loading…</p>}
       {error && <p className="text-red-600">{error}</p>}
 
-      {!loading && !error && (
-        <>
-          <StaleItemsPanel items={items} />
-          <GroupedList items={items} />
-        </>
-      )}
+      {!loading && !error && <GroupedList items={items} />}
     </div>
   );
 }

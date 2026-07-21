@@ -1,18 +1,15 @@
-import { timeAgo, stalenessLevel } from '../utils/grouping.js';
-
-const DOT_COLOR = {
-  ok: 'bg-emerald-400',
-  warning: 'bg-amber-400',
-  critical: 'bg-red-400',
-};
+import { useState } from 'react';
 
 /**
- * One row = one item. `selectable` toggles whether a checkbox renders
- * on the left (used in Admin for bulk operations) — the view-only page
- * passes selectable={false} and gets a plain read-only row.
+ * One row = one item. `selectable` toggles whether a real select
+ * checkbox renders on the left (used in Admin for bulk operations).
+ * When not selectable (view-only page), a `number` marks position in
+ * the group instead, and a checkbox renders on the right — clickable,
+ * but purely local UI state for now (no backend call), a placeholder
+ * for a future per-person confirm action.
  */
-export default function ItemRow({ item, selectable, selected, onToggleSelect }) {
-  const level = stalenessLevel(item.time_stamp);
+export default function ItemRow({ item, number, selectable, selected, onToggleSelect }) {
+  const [confirmed, setConfirmed] = useState(false);
 
   return (
     <li
@@ -31,21 +28,18 @@ export default function ItemRow({ item, selectable, selected, onToggleSelect }) 
         />
       )}
 
-      <span className={`w-2 h-2 rounded-full shrink-0 ${DOT_COLOR[level]}`} title="Check-in freshness" />
+      <span className="w-5 shrink-0 text-sm text-slate-400 text-center">{number}</span>
 
-      <div className="min-w-0 flex-1">
-        <p className="font-medium truncate">{item.item_name}</p>
-        <p className="text-xs text-slate-500 truncate">
-          {item.location} · {item.item_owner}
-        </p>
-      </div>
+      <p className="min-w-0 flex-1 font-medium truncate">{item.item_name}</p>
 
-      <div className="text-right shrink-0">
-        <p className="text-xs text-slate-400">{timeAgo(item.time_stamp)}</p>
-        {item.item_removed && (
-          <span className="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">removed</span>
-        )}
-      </div>
+      {!selectable && (
+        <input
+          type="checkbox"
+          checked={confirmed}
+          onChange={() => setConfirmed((prev) => !prev)}
+          className="w-5 h-5 shrink-0 accent-slate-900"
+        />
+      )}
     </li>
   );
 }

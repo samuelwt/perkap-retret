@@ -4,13 +4,11 @@ import { bulkMoveItems, removeItem as apiRemoveItem } from '../api.js';
 import Login from './Login.jsx';
 import GroupedList from '../components/GroupedList.jsx';
 import BulkActionBar from '../components/BulkActionBar.jsx';
-import LocationBoard from '../components/LocationBoard.jsx';
 import ChecklistMode from '../components/ChecklistMode.jsx';
 import StaleItemsPanel from '../components/StaleItemsPanel.jsx';
 
 const TABS = [
   { id: 'clusters', label: 'Clusters' },
-  { id: 'board', label: 'Board' },
   { id: 'checklist', label: 'Checklist' },
 ];
 
@@ -21,10 +19,9 @@ const TABS = [
  * re-verifies the token on every write, so this gate isn't the actual
  * security boundary.
  *
- * Three tabs share one selection concept:
+ * Two tabs share one selection concept:
  *   - Clusters: grouped list with checkboxes + BulkActionBar for
  *     multi-select move/remove (spec point 3's "bulk operations")
- *   - Board: the spatial drag-and-drop view (spec point 3's alternative)
  *   - Checklist: the "confirm everything's here, submit" flow (point 5)
  */
 export default function Admin() {
@@ -73,17 +70,6 @@ export default function Admin() {
     const failed = results.filter((r) => !r.success);
     if (failed.length > 0) showNotice(failed[0].error);
     setSelectedIds(new Set());
-    refresh();
-  }
-
-  async function handleBoardMove(itemId, newLocation) {
-    await bulkMoveItems([itemId], newLocation, adminToken);
-    refresh();
-  }
-
-  async function handleBoardRemove(itemId) {
-    const result = await apiRemoveItem(itemId, adminToken);
-    if (!result.success) showNotice(result.error);
     refresh();
   }
 
@@ -147,15 +133,6 @@ export default function Admin() {
                 onClear={() => setSelectedIds(new Set())}
               />
             </>
-          )}
-
-          {activeTab === 'board' && (
-            <LocationBoard
-              items={items}
-              locations={config?.locations || []}
-              onMoveItem={handleBoardMove}
-              onRemoveItem={handleBoardRemove}
-            />
           )}
 
           {activeTab === 'checklist' && (

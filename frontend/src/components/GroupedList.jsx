@@ -18,16 +18,20 @@ const GROUP_OPTIONS = [
  *
  * `selectable`/`selectedIds`/`onToggleSelect` are optional — when
  * omitted (view-only page), rows render with no checkboxes at all.
+ *
+ * Every group starts hidden — a name missing from `expanded` means
+ * collapsed — so the page opens as a scannable list of headers instead
+ * of a wall of items.
  */
 export default function GroupedList({ items, selectable = false, selectedIds, onToggleSelect }) {
   const [groupField, setGroupField] = useState('item_category');
-  const [collapsed, setCollapsed] = useState({});
+  const [expanded, setExpanded] = useState({});
 
   const groups = groupBy(items, groupField);
   const groupNames = Object.keys(groups).sort();
 
-  function toggleCollapsed(name) {
-    setCollapsed((prev) => ({ ...prev, [name]: !prev[name] }));
+  function toggleExpanded(name) {
+    setExpanded((prev) => ({ ...prev, [name]: !prev[name] }));
   }
 
   return (
@@ -51,24 +55,25 @@ export default function GroupedList({ items, selectable = false, selectedIds, on
       <div className="space-y-4">
         {groupNames.map((name) => {
           const groupItems = groups[name];
-          const isCollapsed = collapsed[name];
+          const isExpanded = !!expanded[name];
           return (
             <div key={name}>
               <button
-                onClick={() => toggleCollapsed(name)}
+                onClick={() => toggleExpanded(name)}
                 className="w-full flex justify-between items-center text-left mb-2"
               >
                 <h3 className="text-sm font-semibold text-slate-600">
                   {name} <span className="text-slate-400 font-normal">({groupItems.length})</span>
                 </h3>
-                <span className="text-slate-400 text-xs">{isCollapsed ? 'show' : 'hide'}</span>
+                <span className="text-slate-400 text-xs">{isExpanded ? 'hide' : 'show'}</span>
               </button>
-              {!isCollapsed && (
+              {isExpanded && (
                 <ul className="space-y-2">
-                  {groupItems.map((item) => (
+                  {groupItems.map((item, idx) => (
                     <ItemRow
                       key={item.item_id}
                       item={item}
+                      number={idx + 1}
                       selectable={selectable}
                       selected={selectedIds?.has(item.item_id)}
                       onToggleSelect={onToggleSelect}
