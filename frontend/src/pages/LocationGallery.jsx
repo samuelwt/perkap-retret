@@ -42,21 +42,21 @@ export default function LocationGallery() {
           loading={pageIndex === 0 ? 'eager' : 'lazy'}
         />
 
-        <span className="absolute left-6 top-6 bg-white text-black text-5xl font-medium px-8 py-4 rounded-xl shadow z-10">
+        <span className="absolute left-3 top-3 bg-white text-black text-sm font-medium px-3 py-1.5 rounded-xl shadow z-10">
           {page.title}
         </span>
 
         <button
           onClick={goPrev}
           aria-label="Previous page"
-          className="absolute left-2 top-1/2 -translate-y-1/2 text-[400px] font-bold text-black drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)] z-10 leading-none px-1"
+          className="absolute left-2 top-1/2 -translate-y-1/2 text-5xl font-bold text-black drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)] z-10 leading-none px-1"
         >
           ‹
         </button>
         <button
           onClick={goNext}
           aria-label="Next page"
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-[400px] font-bold text-black drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)] z-10 leading-none px-1"
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-5xl font-bold text-black drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)] z-10 leading-none px-1"
         >
           ›
         </button>
