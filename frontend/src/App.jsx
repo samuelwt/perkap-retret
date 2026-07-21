@@ -1,6 +1,7 @@
 import { Routes, Route, Link } from 'react-router-dom';
 import MainPage from './pages/MainPage.jsx';
 import ViewOnly from './pages/ViewOnly.jsx';
+import LocationGallery from './pages/LocationGallery.jsx';
 import Admin from './pages/Admin.jsx';
 
 /**
@@ -24,6 +25,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<MainPage />} />
         <Route path="/tabular" element={<ViewOnly />} />
+        <Route path="/location" element={<LocationGallery />} />
         <Route path="/admin/*" element={<Admin />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

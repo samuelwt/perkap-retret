@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 /**
  * Landing menu, per mainPageLayout.png: a title and two stacked boxes.
  * "Tabular View" routes to /tabular (the existing checklist, formerly
- * mounted at "/"). "Location View" is a visual placeholder only for
- * now — no route exists yet, so it isn't wired to anything.
+ * mounted at "/"). "Location View" routes to /location, the venue photo
+ * gallery.
  */
 export default function MainPage() {
   return (
@@ -24,7 +24,10 @@ export default function MainPage() {
           </span>
         </Link>
 
-        <div className="relative aspect-[388/298] border border-black bg-[#F7F9BB] overflow-hidden">
+        <Link
+          to="/location"
+          className="relative block aspect-[388/298] border border-black bg-[#F7F9BB] overflow-hidden"
+        >
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: `url(${import.meta.env.BASE_URL}assets/3_PGI_mainPage.png)` }}
@@ -32,7 +35,7 @@ export default function MainPage() {
           <span className="absolute left-4 bottom-4 text-[24px] leading-[30px] font-normal text-black">
             Location View
           </span>
-        </div>
+        </Link>
       </div>
     </div>
   );
