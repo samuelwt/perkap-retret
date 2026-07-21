@@ -24,7 +24,7 @@ export const GALLERY_PAGES = [
     width: 440,
     height: 720,
     markers: [
-      { id: 'pgi-1', xPct: 30, yPct: 40, locations: ['Kamar para cogan'] },
+      { id: 'pgi-1', xPct: 70, yPct: 440, locations: ['Aula Ibadah', 'Follow The Voice - Odri, Sam'] },
       { id: 'pgi-2', xPct: 65, yPct: 55, locations: ['Aula Ibadah'] },
     ],
   },
