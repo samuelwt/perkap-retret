@@ -9,7 +9,7 @@ import { Link } from 'react-router-dom';
 export default function MainPage() {
   return (
     <div className="max-w-lg mx-auto px-6 py-8">
-      <h1 className="text-[24px] leading-[30px] font-normal text-black mb-9">
+      <h1 className="text-[24px] leading-[30px] font-bold text-black mb-9">
         Perlengkapan Barang Barang Retret ALIVE 2026
       </h1>
 
@@ -25,8 +25,6 @@ export default function MainPage() {
         </Link>
 
         <div className="relative aspect-[388/298] border border-black bg-[#F7F9BB] overflow-hidden">
-          {/* Drop the real 3_PGI.png into frontend/public/assets/ to replace
-              this placeholder color with the aerial map artwork. */}
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: `url(${import.meta.env.BASE_URL}assets/3_PGI_mainPage.png)` }}

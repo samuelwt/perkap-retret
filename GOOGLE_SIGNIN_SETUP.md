@@ -39,7 +39,7 @@ Double check `google-apps-script/Code.gs`'s `ADMIN_EMAIL` is set to the *exact s
 
 ```bash
 cd frontend
-npm install   # picks up the new @dnd-kit dependency
+npm install
 npm run dev
 ```
 

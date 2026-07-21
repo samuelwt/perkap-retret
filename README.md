@@ -44,7 +44,6 @@ frontend/              The React app that gets deployed to GitHub Pages
 - ✅ View-only page: stale-items panel (oldest-first) + clustered view (category/owner/location/removed)
 - ✅ Real Google Sign-In gating the admin page (see `GOOGLE_SIGNIN_SETUP.md`)
 - ✅ Clusters tab: multi-select checkboxes + bulk "move to" dropdown + bulk remove
-- ✅ Board tab: drag-and-drop between locations, touch-friendly, with a trash-can drop zone
 - ✅ Checklist tab: confirm-present flow that bulk-updates `time_stamp` on submit
 - ✅ Removal safety: UI disables/blocks removing non-`Beli` items, backend rejects it regardless
 
